@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+tensorflow
+requests
+python-dotenv
+openai
+transformers
+tf-keras
+torch
