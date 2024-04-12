@@ -7,3 +7,4 @@ openai
 transformers
 tf-keras
 torch
+typing
