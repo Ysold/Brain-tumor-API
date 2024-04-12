@@ -78,35 +78,30 @@ This is a very fancy project, with auto docs for the API and everything"
 #     }
 
 
-# @app.get("/model", tags=["Model"])
-# def get_model():
-#     client = OpenAI(api_key=os.getenv('OPENAI_SECRET_KEY'))
-#     response = client.chat.completions.create(
-#         model="gpt-3.5-turbo",
-#         messages=[
-#             {"role": "system", "content": "Tu es un assistant médical spécialisé dans les tumeurs."},
-#             {"role": "user", "content": "Qu'est-ce qu'une tumeur ?"},
-#             {"role": "assistant", "content": "Une tumeur est une masse de tissu qui se forme lorsqu'une croissance cellulaire anormale se produit. Les tumeurs peuvent être bénignes (non cancéreuses) ou malignes (cancéreuses)."},
-#             {"role": "user", "content": "Quels sont les différents types de tumeurs ?"}
-#         ]
-#     )
-#     if response is None:
-#         raise HTTPException(status_code=400, detail="Failed to get model from OpenAI")
-#     return response
 
 @app.get("/model", tags=["Model"])
-def generate_response(prompt):
-    API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
-    headers = {"Authorization": f"Bearer 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"}
+def generate_response():
 
-    
+    messages = [
+        {"role": "system", "content": "Tu es un assistant médical spécialisé dans les tumeurs."},
+        {"role": "user", "content": "Qu'est-ce qu'une tumeur ?"},
+        {"role": "assistant", "content": "Une tumeur est une masse de tissu qui se forme lorsqu'une croissance cellulaire anormale se produit. Les tumeurs peuvent être bénignes (non cancéreuses) ou malignes (cancéreuses)."},
+        {"role": "user", "content": "Quels sont les différents types de tumeurs ?"}
+    ]
 
-    data = {
-        "inputs": prompt,
-        "options": {
-            "use_cache": False
+    inputs = " ".join([message["content"] for message in messages])
+
+    try:
+        API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+        headers = {"Authorization": f"Bearer "+ os.getenv('HUGGING_FACE_KEY')}
+        data = {
+            "inputs": inputs,
+            "options": {
+                "use_cache": False
+            }
         }
-    }
 
-    response = requests.post(API_URL, headers=headers, json=data)
-    return response.json()
+        response = requests.post(API_URL, headers=headers, json=data)
+        return response.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
