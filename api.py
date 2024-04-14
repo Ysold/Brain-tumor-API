@@ -3,15 +3,25 @@ from fastapi import File
 import os
 from PIL import Image
 import numpy as np
-from fastapi import FastAPI, UploadFile, HTTPException
+from openai import OpenAI
+from fastapi import FastAPI, UploadFile
 import requests
+from fastapi import FastAPI, HTTPException
 from typing import List
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from keras.models import load_model
-from keras.preprocessing.image import img_to_array
+from keras.models import Sequential
+from tensorflow.keras.layers import Input
+from keras.applications import VGG16
+from tensorflow.keras import layers
+from keras.optimizers import RMSprop
+from keras.preprocessing.image import img_to_array, load_img
 from keras.applications.vgg16 import preprocess_input
+from keras.applications.imagenet_utils import decode_predictions
+from keras.models import load_model
 
 
 load_dotenv()
@@ -37,45 +47,40 @@ This is a very fancy project, with auto docs for the API and everything"
 """,
 )
 
+model = load_model('brain_tumor.h5')
 
-model = load_model('model.h5')
+def prepare_image(image):
+    # Load the image
+    img = load_img(image, target_size=(128, 128))
+    # Convert to array
+    img_array = img_to_array(img)
+    # Expand dimension to match model input_shape
+    img_array = np.expand_dims(img_array, axis=0)
+    # Normalize pixel values
+    img_array = img_array / 255.0
+    return img_array
 
-def prepare_image(image, target):
-    image = image.resize(target)
-    image = img_to_array(image)
-    image = np.expand_dims(image, axis=0)
-    image = preprocess_input(image)
-    return image
-
-def predict(image, model):
-    predictions = model.predict(image)
-    
-    top_score = predictions.max()
-    
-    response = {"score": float(round(top_score, 3))}
-    
-    return response
-
-class Prediction(BaseModel):
-    filename: str
-    content_type: str
-    predictions: dict = []
-
-@app.post("/predict", response_model=Prediction)
+@app.post("/predict")
 async def prediction(file: UploadFile = File(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File provided is not an image.")
+    
+    # Read image as bytes
     content = await file.read()
-    image = Image.open(BytesIO(content)).convert("RGB")
-    # preprocess the image and prepare it for classification
-    image = prepare_image(image, target=(224, 224))
-    response = predict(image, model)
+    # Prepare image for prediction
+    image = prepare_image(BytesIO(content))
+    # Make prediction
+    prediction = model.predict(image)
+    
+    # Determine class based on prediction probability
+    if prediction[0] > 0.5:
+        class_name = "Tumor"
+    else:
+        class_name = "No Tumor"
 
-    return {
-        "filename": file.filename,
-        "content_type": file.content_type,
-        "predictions": response,
-    }
+    return {"prediction": class_name, "probability": float(prediction[0])}
+
+
 
 
 class ResponseModel(BaseModel):
