@@ -1,18 +1,17 @@
+from io import BytesIO
+from fastapi import File
 import os
+from PIL import Image
 import numpy as np
-from openai import OpenAI
-from fastapi import FastAPI
-from tensorflow.keras.models import load_model
-from tensorflow.keras.applications.imagenet_utils import (decode_predictions, preprocess_input)
-from tensorflow.keras.preprocessing.image import img_to_array
+from fastapi import FastAPI, UploadFile, HTTPException
 import requests
-from fastapi import FastAPI, HTTPException
 from typing import List
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from pydantic import BaseModel
 from dotenv import load_dotenv
-
+from keras.models import load_model
+from keras.preprocessing.image import img_to_array
+from keras.applications.vgg16 import preprocess_input
 
 
 load_dotenv()
@@ -38,44 +37,45 @@ This is a very fancy project, with auto docs for the API and everything"
 """,
 )
 
-# model = load_model('model.keras')
 
-# def prepare_image(image, target):
-#     image = image.resize(target)
-#     image = img_to_array(image)
-#     image = np.expand_dims(image, axis=0)
-#     image = preprocess_input(image)
-#     return image
+model = load_model('model.h5')
 
-# def predict(image, model):
-#     # We keep the 2 classes with the highest confidence score
-#     results = decode_predictions(model.predict(image), 2)[0]
-#     response = [
-#         {"class": result[1], "score": float(round(result[2], 3))} for result in results
-#     ]
-#     return response
+def prepare_image(image, target):
+    image = image.resize(target)
+    image = img_to_array(image)
+    image = np.expand_dims(image, axis=0)
+    image = preprocess_input(image)
+    return image
 
-# class Prediction(BaseModel):
-#     filename: str
-#     content_type: str
-#     predictions: List[dict] = []
+def predict(image, model):
+    predictions = model.predict(image)
+    
+    top_score = predictions.max()
+    
+    response = {"score": float(round(top_score, 3))}
+    
+    return response
 
-# @app.post("/predict", response_model=Prediction)
-# async def prediction(file: UploadFile = File(...)):
-#     # Ensure that the file is an image
-#     if not file.content_type.startswith("image/"):
-#         raise HTTPException(status_code=400, detail="File provided is not an image.")
-#     content = await file.read()
-#     image = Image.open(BytesIO(content)).convert("RGB")
-#     # preprocess the image and prepare it for classification
-#     image = prepare_image(image, target=(224, 224))
-#     response = predict(image, model)
-#     # return the response as a JSON
-#     return {
-#         "filename": file.filename,
-#         "content_type": file.content_type,
-#         "predictions": response,
-#     }
+class Prediction(BaseModel):
+    filename: str
+    content_type: str
+    predictions: dict = []
+
+@app.post("/predict", response_model=Prediction)
+async def prediction(file: UploadFile = File(...)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File provided is not an image.")
+    content = await file.read()
+    image = Image.open(BytesIO(content)).convert("RGB")
+    # preprocess the image and prepare it for classification
+    image = prepare_image(image, target=(224, 224))
+    response = predict(image, model)
+
+    return {
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "predictions": response,
+    }
 
 
 class ResponseModel(BaseModel):
