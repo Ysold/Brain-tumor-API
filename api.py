@@ -1,64 +1,50 @@
+import io
 from io import BytesIO
-from fastapi import File
+from fastapi import FastAPI, File, UploadFile, HTTPException
 import os
-from PIL import Image
 import numpy as np
-from openai import OpenAI
 from fastapi import FastAPI, UploadFile
 import requests
 from fastapi import FastAPI, HTTPException
 from typing import List
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import joblib
+import pandas as pd
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
 
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from keras.models import load_model
 from keras.models import Sequential
-from tensorflow.keras.layers import Input
-from keras.applications import VGG16
-from tensorflow.keras import layers
-from keras.optimizers import RMSprop
-from keras.preprocessing.image import img_to_array, load_img
-from keras.applications.vgg16 import preprocess_input
-from keras.applications.imagenet_utils import decode_predictions
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.callbacks import EarlyStopping
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
 from keras.models import load_model
 
+from fonctions import *
 
 load_dotenv()
 
-
 tags_metadata = [
     {
-        "name": "Text",
-        "description": "Operations with text.",
-    },
-    {
-        "name": "Numbers",
-        "description": "Operations with numbers.",
-    },
+        "name": "Image",
+        "description": "Operations with image data.",
+    }
 ]
 
 app = FastAPI(
-    title="Tumor API",
+    title="Brain Tumor Image Classifier",
     openapi_tags=tags_metadata,
     description="""
-# Title
-This is a very fancy project, with auto docs for the API and everything"
-""",
+    # Brain Tumor Image Classifier
+    This API predicts whether an uploaded image contains a brain tumor or not.
+    """
 )
 
-model = load_model('brain_tumor.h5')
-
-def prepare_image(image):
-    # Load the image
-    img = load_img(image, target_size=(128, 128))
-    # Convert to array
-    img_array = img_to_array(img)
-    # Expand dimension to match model input_shape
-    img_array = np.expand_dims(img_array, axis=0)
-    # Normalize pixel values
-    img_array = img_array / 255.0
-    return img_array
+model = load_model('model.h5')
 
 @app.post("/predict")
 async def prediction(file: UploadFile = File(...)):
@@ -80,7 +66,113 @@ async def prediction(file: UploadFile = File(...)):
 
     return {"prediction": class_name, "probability": float(prediction[0])}
 
+@app.post("/training")
+async def train_model(file: UploadFile = File(...)):
+    # Check if file is CSV
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be a CSV.")
+    
+    # Read CSV data
+    content = await file.read()
+    
+    # Create a file-like object from the content
+    file_like_object = io.BytesIO(content)
+    
+    # Read CSV with Pandas
+    df = pd.read_csv(file_like_object)
+    
+    # Assuming last column is target variable and all others are features
+    X = df.iloc[:, :-1].values
+    y = df.iloc[:, -1].values
+    
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Train model
+    model = RandomForestClassifier()
+    model.fit(X_train, y_train)
+    
+    # Evaluate model
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    
+    # Save trained model
+    joblib.dump(model, "trained_model.pkl")
+    
+    return {"message": "Model trained successfully.", "accuracy": accuracy}
 
+@app.post("/train_tensorflow")
+async def train_tensorflow_model(file: UploadFile = File(...)):
+    # Check if file is CSV
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be a CSV.")
+    
+    # Read CSV data
+    content = await file.read()
+    
+    # Create a file-like object from the content
+    file_like_object = io.BytesIO(content)
+    
+    # Read CSV with Pandas
+    df = pd.read_csv(file_like_object)
+    
+    # Assuming last column is target variable and all others are features
+    X = df.iloc[:, :-1].values
+    y = df.iloc[:, -1].values
+    
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Define model architecture
+    model = Sequential([
+        Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+        Dense(64, activation='relu'),
+        Dense(1, activation='sigmoid')
+    ])
+    
+    # Compile model
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    
+    # Define early stopping
+    early_stopping = EarlyStopping(patience=5, monitor='val_accuracy', mode='max')
+    
+    # Train model
+    history = model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=20, callbacks=[early_stopping])
+    
+    # Save trained model
+    model.save("tensorflow_model.h5")
+    
+    # Evaluate model
+    test_loss, test_acc = model.evaluate(X_test, y_test)
+    
+    return {"message": "TensorFlow model trained successfully.", "accuracy": test_acc}
+
+@app.post("/training_classification")
+async def train_custom_model(directory: str):
+    # Check if directory exists
+    if not os.path.exists(directory):
+        raise HTTPException(status_code=400, detail=f"Directory '{directory}' does not exist.")
+    
+    # Load images from directory
+    X, y = load_images_from_directory(directory)
+    
+    # Split data into train and test sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Preprocess images
+    X_train = preprocess_images(X_train)
+    X_test = preprocess_images(X_test)
+    
+    # Define model
+    model = define_model()
+    
+    # Train model
+    history = train_model(model, X_train, y_train)
+    
+    # Evaluate model
+    test_loss, test_acc = model.evaluate(X_test, y_test)
+    
+    return {"message": "Custom model trained successfully.", "accuracy": test_acc}
 
 
 class ResponseModel(BaseModel):
