@@ -3,7 +3,7 @@ from fastapi import File
 import os
 from PIL import Image
 import numpy as np
-from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile, HTTPException, File
 import requests
 from typing import List
 
@@ -12,6 +12,14 @@ from dotenv import load_dotenv
 from keras.models import load_model
 from keras.preprocessing.image import img_to_array
 from keras.applications.vgg16 import preprocess_input
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+import pandas as pd
+import joblib
+from imblearn.over_sampling import SMOTE
 
 
 load_dotenv()
@@ -49,11 +57,8 @@ def prepare_image(image, target):
 
 def predict(image, model):
     predictions = model.predict(image)
-    
     top_score = predictions.max()
-    
     response = {"score": float(round(top_score, 3))}
-    
     return response
 
 class Prediction(BaseModel):
@@ -67,7 +72,6 @@ async def prediction(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="File provided is not an image.")
     content = await file.read()
     image = Image.open(BytesIO(content)).convert("RGB")
-    # preprocess the image and prepare it for classification
     image = prepare_image(image, target=(224, 224))
     response = predict(image, model)
 
@@ -107,3 +111,46 @@ def generate_response():
         return response.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+
+@app.post("/training")
+async def training(file: UploadFile = File(...)):
+    # Read the data from the file
+    df = pd.read_csv(file.file)
+
+    # Split the data into features and target
+    X = df.drop('Diabetes_012', axis=1)
+    y = df['Diabetes_012']
+
+    # Preprocess the features
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X)
+
+    # Handle class imbalance
+    smote = SMOTE()
+    X, y = smote.fit_resample(X, y)
+
+    # Split the data into training and test sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Define the model and hyperparameters
+    model = RandomForestClassifier()
+    parameters = {'n_estimators': [10, 50, 100], 'max_depth': [None, 10, 20, 30], 'min_samples_split': [2, 5, 10]}
+
+    # Use grid search to find the best hyperparameters
+    clf = GridSearchCV(model, parameters)
+    clf.fit(X_train, y_train)
+
+    # Get the best model
+    model = clf.best_estimator_
+
+    # Evaluate the model
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+
+    # Save the trained model to a file
+    joblib.dump(model, 'model.joblib')
+
+    # Return a response
+    return {"message": "Model trained and saved successfully.", "accuracy": accuracy}
