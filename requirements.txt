@@ -1,0 +1,13 @@
+streamlit
+requests
+json
+numpy
+cv2
+tensorflow
+keras
+pandas
+scikit-learn
+joblib
+fastapi
+python-dotenv
+pydantic

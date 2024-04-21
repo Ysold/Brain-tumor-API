@@ -23,6 +23,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from keras.models import load_model
+from dotenv import load_dotenv
 
 from fonctions import *
 
@@ -46,19 +47,15 @@ app = FastAPI(
 
 model = load_model('model.h5')
 
-@app.post("/predict")
+@app.post("/predict", tags=["Prediction"], summary="Make a prediction",
+description="""This route accepts png or jpeg data, passes it to a pre-trained 
+machine learning model, and returns a prediction based on this data.""")
+
 async def prediction(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File provided is not an image.")
-    
-    # Read image as bytes
     content = await file.read()
-    # Prepare image for prediction
     image = prepare_image(BytesIO(content))
-    # Make prediction
     prediction = model.predict(image)
     
-    # Determine class based on prediction probability
     if prediction[0] > 0.5:
         class_name = "Tumor"
     else:
@@ -66,19 +63,19 @@ async def prediction(file: UploadFile = File(...)):
 
     return {"prediction": class_name, "probability": float(prediction[0])}
 
-@app.post("/training")
+@app.post("/training", tags=["Training"], summary="Train a machine learning model",
+description="""This route accepts a uploaded CSV file, uses it to train a machine learning model, and
+returns a response with information about the training process.""")
+
 async def train_model(file: UploadFile = File(...)):
     # Check if file is CSV
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV.")
     
-    # Read CSV data
     content = await file.read()
     
-    # Create a file-like object from the content
     file_like_object = io.BytesIO(content)
     
-    # Read CSV with Pandas
     df = pd.read_csv(file_like_object)
     
     # Assuming last column is target variable and all others are features
@@ -88,7 +85,6 @@ async def train_model(file: UploadFile = File(...)):
     # Split data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # Train model
     model = RandomForestClassifier()
     model.fit(X_train, y_train)
     
@@ -99,28 +95,22 @@ async def train_model(file: UploadFile = File(...)):
     # Save trained model
     joblib.dump(model, "trained_model.pkl")
     
-    return {"message": "Model trained successfully.", "accuracy": accuracy}
+    return {"message": "Model trained successfully.", "accuracy": accuracy, "downloaded_filename": "trained_model.pkl"}
 
 @app.post("/train_tensorflow")
 async def train_tensorflow_model(file: UploadFile = File(...)):
-    # Check if file is CSV
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV.")
     
-    # Read CSV data
     content = await file.read()
     
-    # Create a file-like object from the content
     file_like_object = io.BytesIO(content)
     
-    # Read CSV with Pandas
     df = pd.read_csv(file_like_object)
     
-    # Assuming last column is target variable and all others are features
     X = df.iloc[:, :-1].values
     y = df.iloc[:, -1].values
     
-    # Split data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
     # Define model architecture
@@ -174,11 +164,10 @@ async def train_custom_model(directory: str):
     
     return {"message": "Custom model trained successfully.", "accuracy": test_acc}
 
-
-class ResponseModel(BaseModel):
-    generated_text: str
     
-@app.get("/model", tags=["Model"], response_model=List[ResponseModel], responses={200: {"model": List[ResponseModel], "description": "Successful Response"}, 500: {"description": "Internal Server Error"}})
+@app.get("/model", tags=["Model"], summary="Get model information",
+description="""This route returns information about the machine learning model
+ currently used by the API.""")
 def generate_response():
 
     messages = [

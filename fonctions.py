@@ -61,3 +61,7 @@ def train_model(model, X_train, y_train):
     early_stopping = EarlyStopping(patience=5, monitor='val_accuracy', mode='max')
     history = model.fit(X_train, y_train, epochs=20, validation_split=0.2, callbacks=[early_stopping])
     return history
+
+
+def read_uploaded_file(uploaded_file):
+    return uploaded_file.read()
