@@ -139,40 +139,13 @@ async def train_tensorflow_model(file: UploadFile = File(...)):
     history = model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=20, callbacks=[early_stopping])
     
     # Save trained model
-    model.save("tensorflow_model.h5")
+    model_filename = "tensorflow_model.h5"
+    model.save(model_filename)
     
     # Evaluate model
     test_loss, test_acc = model.evaluate(X_test, y_test)
     
-    return {"message": "TensorFlow model trained successfully.", "accuracy": test_acc}
-
-@app.post("/training_classification")
-async def train_custom_model(directory: str):
-    # Check if directory exists
-    if not os.path.exists(directory):
-        raise HTTPException(status_code=400, detail=f"Directory '{directory}' does not exist.")
-    
-    # Load images from directory
-    X, y = load_images_from_directory(directory)
-    
-    # Split data into train and test sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    # Preprocess images
-    X_train = preprocess_images(X_train)
-    X_test = preprocess_images(X_test)
-    
-    # Define model
-    model = define_model()
-    
-    # Train model
-    history = train_model(model, X_train, y_train)
-    
-    # Evaluate model
-    test_loss, test_acc = model.evaluate(X_test, y_test)
-    
-    return {"message": "Custom model trained successfully.", "accuracy": test_acc}
-
+    return {"message": "TensorFlow model trained successfully.", "accuracy": test_acc, "model_filename": model_filename}
     
 @app.get("/model", tags=["Model"], summary="Get model information",
 description="""This route returns information about the machine learning model
