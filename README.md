@@ -7,7 +7,7 @@
 - Tony OSEI
 - Mathis TALBI
 
-## Route
+## Routes
 
 Take CSV file, train model, with randomForest:
 
@@ -21,7 +21,7 @@ Take CSV file, train model, but with tensorFlow:
 "/train_tensorflow"
 ```
 
-Call model, if detect if tumor is detected:
+Call model, if detect a tumor are detected:
 
 ```sh
 "/predict"
