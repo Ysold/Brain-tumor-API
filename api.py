@@ -25,7 +25,7 @@ from sklearn.metrics import accuracy_score
 from keras.models import load_model
 from dotenv import load_dotenv
 from fastapi.responses import FileResponse
-
+from openai import OpenAI
 from fonctions import *
 
 load_dotenv()
@@ -186,19 +186,13 @@ def generate_response():
         {"role": "user", "content": "Quels sont les différents types de tumeurs ?"}
     ]
 
-    inputs = " ".join([message["content"] for message in messages])
-    
     try:
-        API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
-        headers = {"Authorization": f"Bearer "+ os.getenv('HUGGING_FACE_KEY')}
-        data = {
-            "inputs": inputs,
-            "options": {
-                "use_cache": False
-            }
-        }
+        client = OpenAI(api_key=os.getenv('OPEN_AI_KEY'))
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages= messages
+        )
 
-        response = requests.post(API_URL, headers=headers, json=data)
-        return response.json()
+        return completion.choices[0].message.content
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
