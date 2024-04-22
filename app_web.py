@@ -108,3 +108,29 @@ with col2:
         ## Our Team
         Led by a shared passion for healing and innovation, our doctors work tirelessly to unravel the complexities of tumors and provide personalized treatment plans tailored to each patient's unique needs. Through rigorous research, cutting-edge technologies, and compassionate care, we strive to not only treat tumors but also to improve outcomes and enhance quality of life. The Brain Tumor Detection tool, that has been developed by our engineers, help us in our everyday job making easier the detection of patients tumor. 
     """)
+    
+# Separateur
+st.divider()       
+
+# Bloc 'Charts'
+st.markdown("<h2 style='text-align: center;'>Our Charts</h2>", unsafe_allow_html=True)
+col1, col2 = st.columns([1, 1], gap='small')
+
+# Colonne 1
+with col1:
+    st.image('./images/accuracy_chart.png')
+    multi = '''More epochs lead to a better Accuracy, reaching a rate of 0.99 after 8 Epochs'''
+    centered_multi = f'<div style="text-align: center;max-width: 430px;margin-right: auto;text-wrap:balance">{multi}</div>'
+    st.markdown(centered_multi, unsafe_allow_html=True)
+
+# Colonne 2
+with col2:
+    st.image('./images/loss_chart.png')
+    multi = ''' More epochs lead to a decrease of the Loss, reaching a rate of 0.01 after 8 Epochs'''
+    centered_multi = f'<div style="text-align: center;max-width: 430px;margin-right: auto;text-wrap:balance">{multi}</div>'
+    st.markdown(centered_multi, unsafe_allow_html=True)
+
+
+multi = '''According to the results we have experienced, here is the Acurracy and Loss charts that we can expect.'''
+centered_multi = f'<div style="text-align: center;padding: 20px;margin: 20px;max-width: 820px;margin-left: auto;margin-right: auto;">{multi}</div>'
+st.markdown(centered_multi, unsafe_allow_html=True)

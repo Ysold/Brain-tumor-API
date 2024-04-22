@@ -106,7 +106,8 @@ async def download_model():
     return FileResponse(model_filename, media_type="application/octet-stream", filename=model_filename)
 
 
-@app.post("/train_tensorflow")
+@app.post("/train_tensorflow", tags=["Training"], summary="Train a TensorFlow model", 
+description="""This route accepts a CSV file, uses it to train a TensorFlow model, and returns a response with information about the training process.""")
 async def train_tensorflow_model(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV.")
