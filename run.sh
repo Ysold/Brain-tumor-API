@@ -1,5 +1,8 @@
 # Installation des dépendances
 pip install -r requirements.txt
 
-# Démarage de l'API
+# Démarrage de l'API
 uvicorn api:app --reload
+
+# Démarrage de l'interface Streamlit
+streamlit run app_web.py
