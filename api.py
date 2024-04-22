@@ -24,6 +24,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from keras.models import load_model
 from dotenv import load_dotenv
+from fastapi.responses import FileResponse
 
 from fonctions import *
 
@@ -93,9 +94,17 @@ async def train_model(file: UploadFile = File(...)):
     accuracy = accuracy_score(y_test, y_pred)
     
     # Save trained model
-    joblib.dump(model, "trained_model.pkl")
+    model_filename = "trained_model.pkl"
+    joblib.dump(model, model_filename)
     
-    return {"message": "Model trained successfully.", "accuracy": accuracy, "downloaded_filename": "trained_model.pkl"}
+    return {"message": "Model trained successfully.", "accuracy": accuracy, "model_filename": model_filename}
+
+@app.get("/download_model", tags=["Training"], summary="Download the trained machine learning model",
+description="""This route returns the trained machine learning model as a downloadable file.""")
+async def download_model():
+    model_filename = "trained_model.pkl"
+    return FileResponse(model_filename, media_type="application/octet-stream", filename=model_filename)
+
 
 @app.post("/train_tensorflow")
 async def train_tensorflow_model(file: UploadFile = File(...)):

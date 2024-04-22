@@ -32,7 +32,7 @@ if uploaded_file is not None:
         response_json = json.loads(response.text)
 
         st.markdown(f"**Prediction:** {response_json['prediction']}")
-        st.markdown(f"**Probability:** {response_json['probability']}")
+        st.markdown(f"**Précision:** {response_json['probability']}")
 else:
     st.warning("Please upload an image.")
 
@@ -53,7 +53,7 @@ if uploaded_file is not None:
 
             st.markdown(f"**Message:** {response_json['message']}")
             st.markdown(f"**Précision:** {response_json['accuracy']}")
-            st.markdown(f"**Nom du fichier téléchargé:** {response_json['downloaded_filename']}")
+            st.markdown(f"**Model à télécharger:** [{response_json['model_filename']}](http://127.0.0.1:8000/download_model)")
             
 else:
     st.warning("Please upload a CSV file.")
