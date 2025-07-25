@@ -1,11 +1,6 @@
 # Brain-tumor-API
 
-## Team
-
 - Tristan NIO
-- Rayan MAMACHE
-- Tony OSEI
-- Mathis TALBI 
 
 ## Routes
 
